@@ -7,7 +7,11 @@ st.markdown("## User Guide")
 st.write(
     "Welcome to the C++ to Java Migration Assistant. This guide will help you understand how to use the app effectively.")
 
-st.markdown("### Step-by-Step Instructions:")
+st.markdown("### Migration Assistant Options")
+st.markdown("#### 1. WebUI Demo : 1 file at a time ")
+st.markdown("#### 2. CLI Demo   : Multiple files ")
+
+st.markdown("### WebUI Demo : Step-by-Step Instructions")
 st.markdown(
     "1. **Set Target Directory**: Enter a new directory where you want to save the outputs. Click the 'Set Target Directory' button to create the directory.")
 st.markdown(

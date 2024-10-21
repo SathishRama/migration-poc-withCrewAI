@@ -82,9 +82,9 @@ def analyze_cpp_files(input_file_name):
     if input_file_name.endswith(".cpp") or input_file_name.endswith(".h"):
         with open(input_file_name, "r") as file:
             code_snippet = file.read()
-            print(f"Analyzing {input_file_name}...")
+            print(f"    Analyzing {input_file_name}...")
             code_explaination = code_explain_crew.kickoff(inputs={"input": code_snippet})
-            print(f"Completed Analyzing {input_file_name}...")
+            print(f"    Completed Analyzing {input_file_name}")
     return code_explaination
 
 #func to migrate C++ code to Java
@@ -96,17 +96,17 @@ def cpp_to_java(output_file_name, input_file_name):
     if input_file_name.endswith(".cpp") or input_file_name.endswith(".h"):
         with open(input_file_name, "r") as file:
             code_snippet = file.read()
-            print(f"Migrating {input_file_name}...")
+            print(f"    Migrating {input_file_name}...")
             migration_agent_response = java_code_migration_crew.kickoff(inputs={"input": code_snippet})
-            print(f"Completed migrating {input_file_name}...")
-            print(f"Response: {migration_agent_response.raw}")
+            print(f"    Completed migrating {input_file_name}")
+            #print(f"Response: {migration_agent_response.raw}")
 
             # Attempt to parse the response as JSON
             try:
                 # Remove any code block markers and parse the JSON
                 response_content = migration_agent_response.raw.strip().strip("```json").strip("```")
                 output_json = json.loads(response_content)
-                print("Parsed JSON:", output_json)
+                #print("Parsed JSON:", output_json)
 
                 # Extract Java code and explanation from the output_json
                 output_json_list = list(output_json.values())
@@ -116,47 +116,94 @@ def cpp_to_java(output_file_name, input_file_name):
                 response["message"] = "Code successfully migrated"
 
             except Exception as e:
-                print("Exception Occurred in migrating code :", e)
+                print("     Exception Occurred in migrating code :", e)
                 response["success"] = False
                 response["message"] = f"Error occurred while migrating code: {str(e)}"
                 java_code = ""
                 code_explaination = ""
 
-            print(f"Java code: {java_code}")
-            print(f"Explained code: {code_explaination}")
+            # print(f"Java code: {java_code}")
+            # print(f"Explained code: {code_explaination}")
 
             try:
             # Save the Java code to the output file
                 with open(output_file_name, "w") as file:
                     file.write(java_code)
-                print(f"Java code saved to {output_file_name}")
+                print(f"    Java code saved to {output_file_name}")
                 # save the explanation to a separate file
                 explaination_file_name = f'''{output_file_name.split('.')[0]}_explaination.txt'''
                 with open(explaination_file_name, "w") as file:
                     file.write(code_explaination)
-                print(f"Explained code saved to {explaination_file_name}")
+                print(f"    Explained code saved to {explaination_file_name}")
             except Exception as e:
-                print("Exception occurred while saving java files :", e)
+                print("     Exception occurred while saving java files :", e)
                 response["success"] = False
                 response["message"] = f"Error occurred while saving java files: {str(e)}"
 
     return response
 
-if __name__ == "__main__":
-    #take user input for what agent to use and the needed inputs
-    print("Enter the path to the C++ file you want to analyze or migrate:  ")
-    input_file_name = input()
-    print("Choose an agent:")
-    print("1. C++ Code Explainer")
-    print("2. Java Code Migrator")
-    choice = int(input("Enter your choice (1/2): "))
+def run_directory_migration():
+    #Take the User Inputs for C++ Project Directory and Output Java Project Directory
+    files_migration_status = []
+    num_cpp_readme_docs = 0
+    print("Enter the path to the C++ project directory:  ")
+    cpp_project_dir = input()
+    print("Enter the path to the output Java project directory:  ")
+    java_project_dir = input()
 
-    if choice == 1:
-        code_explaination = analyze_cpp_files(input_file_name)
-        print(f"Explained code: {code_explaination}")
-    elif choice == 2:
-        output_dir = os.path.dirname(input_file_name)
-        output_file_name = input_file_name.split('.')[0] + "_migrated.java"
-        cpp_to_java(output_file_name, input_file_name)
-    else:
-        print("Invalid choice. Please try again.")
+    # Check if the provided directories exist
+    if not os.path.exists(cpp_project_dir) or not os.path.exists(java_project_dir):
+       print("Provided directory does not exist.")
+       exit(1)
+
+    # Iterate over each C++ file in the project directory
+    cpp_files = [f for f in os.listdir(cpp_project_dir) if f.endswith(".cpp") or f.endswith(".h")]
+    print(f"Found {len(cpp_files)}  C++ files: ")
+    print("## Starting migration...")
+    for cpp_file in cpp_files:
+        print(f"    Processing {cpp_file}...")
+        cpp_file_path = os.path.join(cpp_project_dir, cpp_file)
+        cpp_file_type = cpp_file.split('.')[-1]
+        if cpp_file_type == "cpp":
+            output_java_file_name = cpp_file.split('.')[0] + ".java"
+        elif cpp_file_type == "h":
+            output_java_file_name = cpp_file.split('.')[0] + "_functions.java"
+        else:
+            print(f"    Unsupported file type for {cpp_file}. Skipping...")
+
+        output_java_file_path = os.path.join(java_project_dir, output_java_file_name)
+        code_explaination = analyze_cpp_files(cpp_file_path)
+        #print(f"CPP Explained code: {code_explaination}")
+        #create a readthedocs directory in java project directory if not exists
+        readthedocs_dir = os.path.join(java_project_dir, "cpp_readthedocs")
+        if not os.path.exists(readthedocs_dir):
+            os.makedirs(readthedocs_dir)
+
+        # Save the Markdown file with the explained code for each C++ file in the readthedocs directory
+        md_file_path = os.path.join(readthedocs_dir, cpp_file.split('.')[0] + ".md")
+        try:
+           with open(md_file_path, "w") as md_file:
+               md_file.write(code_explaination.raw)
+               num_cpp_readme_docs = num_cpp_readme_docs + 1
+        except Exception as e:
+           print(f"     Exception occurred while saving Markdown file for {cpp_file}:", e)
+
+        response = cpp_to_java(output_java_file_path, cpp_file_path)
+        files_migration_status.append((cpp_file, response['message']))
+        #display number of files processsed and % of completion
+        print(f"    ==> {len(files_migration_status)} out of {len(cpp_files)} files processed.")
+
+
+    print("\n###  Migration Status ####")
+    for cpp_file, status in files_migration_status:
+        print(f"    {cpp_file}: {status}")
+    print(f"    Total number of C++ README files created: {num_cpp_readme_docs}")
+
+    print("\n### Migration process completed. Review the generated Java files and Markdown files for any errors.")
+    return
+
+if __name__ == "__main__":
+    #This program can be used to migrate a C++ application to a Java application
+    print("     ### This is DEMO of C++ to Java Migration using GenAI ")
+    run_directory_migration()
+
